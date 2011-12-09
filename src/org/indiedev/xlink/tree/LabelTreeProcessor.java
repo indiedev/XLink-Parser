@@ -3,7 +3,9 @@ package org.indiedev.xlink.tree;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -50,7 +52,7 @@ public class LabelTreeProcessor
 	/* PRESENTATION LINK ELEMENTS */
 	//Root tag
 	private final String ext_PresentationLink="link:presentationLink";
-	private final String ext_PresentationLink_role="xlink:role";
+	private final String ext_PresentationLinkAttrib_role="xlink:role";
 		//Locator tag
 		private final String loc_Presentation="link:loc";
 		private final String loc_Presentation_Label="xlink:label";
@@ -96,7 +98,7 @@ public class LabelTreeProcessor
 	}
 	
 	//RETURNS:NodeList of the input node
-	private NodeList getNodeList(String t_node)
+	private NodeList getEntireNodeList(String t_node)
 	{
 		NodeList t_nodeList=document.getElementsByTagName(t_node);
 		
@@ -107,6 +109,61 @@ public class LabelTreeProcessor
 
 	}
 	
+	/*
+	 * Prints the node name of the given NodeList
+	 */
+	private void printNodeList(NodeList nodeList)
+	{
+		System.out.println("NodeList Details:LENGTH="+nodeList.getLength());
+		System.out.println("----------------");
+		for(int i=0;i<nodeList.getLength();i++)
+		{
+			System.out.println("node["+i+"] : "+nodeList.item(i).getNodeName());
+		}		
+	}
+	
+	/*
+	 * Extracts nodes of given name from the nodeList.
+	 * Returns:Node[] containing req.nodes
+	 */
+	private List<Node> extractNodes(NodeList nodeList,String nodeToExtract)
+	{
+		List<Node> list_nodeList=new ArrayList<Node>();
+		Node tempNode=null;
+		
+		System.out.println("Extracting Node of name  :  "+nodeToExtract);
+		System.out.println("-----------------------------");
+		for(int i=0;i<nodeList.getLength();i++)
+		{
+			tempNode=nodeList.item(i);
+			if(tempNode.getNodeName().equals(nodeToExtract))
+			{
+				//add to List<Node>
+				list_nodeList.add(tempNode);
+			}
+		}
+		return list_nodeList;
+	}
+	
+	/*
+	 * Extracts a specific attribute values from the given nodeList.
+	 * Return:String[] containing attribute values
+	 */
+	private String[] extractNodesAttributes( List<Node> list_nodeList,String attribName)
+	{
+		Iterator<Node> itr=list_nodeList.iterator();
+		String[] attribValues=new String[list_nodeList.size()];
+		int count=0;
+		
+		while(itr.hasNext())
+		{
+			attribValues[count]=itr.next().getAttributes().getNamedItem(attribName).getNodeValue();
+			count++;          
+		}
+		System.out.println("Attribute values Count: "+attribValues.length);
+			
+		return attribValues;
+	}
 	
 	//should populate locators within a single 'presentationLink" node only!
 	//Extracts all locator nodes under the given 'role' node.
@@ -115,7 +172,26 @@ public class LabelTreeProcessor
 		NodeList nodeList=t_roleNode.getChildNodes();
 		
 		if(nodeList!=null)
-		System.out.println("Locator size:"+nodeList.item(0));
+		{
+			System.out.println("Locator size:"+nodeList.getLength());
+			this.printNodeList(nodeList);
+
+			//extracting only locator nodes from the nodeList
+			List<Node> list_LocatorNodeList=this.extractNodes(nodeList, loc_Presentation);
+			
+			//extracting Locator labels
+			String[] locatorLabels=this.extractNodesAttributes(list_LocatorNodeList, loc_Presentation_Label);
+			
+			//adding to locatorList(ArrayList)
+			Collections.addAll(locatorList, locatorLabels);
+	
+			System.out.println("[POPULATE_LocatorList]:Completed.List size:"+locatorList.size());
+		}
+		else
+		{
+			System.out.println("ERROR[LabelTreeProcessor]: Role Node is null! ");
+		}
+		
 		//getting the childnodes(i.e:Locator nodes)
 	
 /*		System.out.println("[POPULATE_LocatorList]:Started extracting \'Locators\' in Role:"+t_roleNode.getNodeValue());
@@ -165,24 +241,28 @@ public class LabelTreeProcessor
 	}
 	
 	//Extracts the xlink node information under the given 'presentationrole'.
-	public void performNodeExtraction(String t_role)
+	public void performLocatorNodesExtraction(String t_role)
 	{
 		//getting all 'link:presentationLink' nodes
-		NodeList nodeList_PresentationLink=getNodeList(ext_PresentationLink);
+		NodeList nodeList_PresentationLink=getEntireNodeList(ext_PresentationLink);
 		
 		if(nodeList_PresentationLink!=null)
 		{
-			String tempRoles=null;
+			String roleNodeName=null;
 			Node roleNode=null;
-			
+		
 			//checking the 'role' attribute of all the retrieved 'link:presentation' nodes
 			for(int i=0;i<nodeList_PresentationLink.getLength();i++)
 			{
-				roleNode=nodeList_PresentationLink.item(i).getAttributes().getNamedItem(ext_PresentationLink_role);
-				tempRoles=roleNode.getNodeValue();
+				//storing the rolenode 
+				roleNode=nodeList_PresentationLink.item(i);
 				
+				//getting the value of 'xlink:role' attr
+				roleNodeName=nodeList_PresentationLink.item(i).getAttributes().getNamedItem(ext_PresentationLinkAttrib_role).getNodeValue();
+				
+				//System.out.println("Debug:"+roleNodeName);
 				//checking whether 't_role' exists
-				if(tempRoles.equals(t_role))
+				if(roleNodeName.equals(t_role))
 				{
 					System.out.println("ROLE: "+t_role+" exists!.Populating \'Locator\' and \'Arc\' List");
 					
@@ -278,14 +358,15 @@ public class LabelTreeProcessor
 		System.out.println("****LabelTree Processor****");
 		
 		LabelTreeProcessor processor=new LabelTreeProcessor();
-		processor.loadFile(new File("src\\custom_pre2.xml"));
+		processor.loadFile(new File("src\\files\\custom_pre2.xml"));
 												
-		processor.performNodeExtraction("one");
+		processor.performLocatorNodesExtraction("one");
 		
 		//inserting a node from the arclist
-		//processor.importArcsIntoLabelTree();
+		processor.importArcsIntoLabelTree();
+		
 		
 		//displaying the tree struture
-		//processor.viewTree();
+		processor.viewTree();
 	}
 }
