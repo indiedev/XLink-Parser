@@ -163,7 +163,5 @@ class LabelTree
 			//if nothing is found in childnode also,then return null
 			return null;
 		}//else
-		
-
 	}//func
 }
