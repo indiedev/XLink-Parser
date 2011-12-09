@@ -358,7 +358,7 @@ public class LabelTreeProcessor
 		System.out.println("****LabelTree Processor****");
 		
 		LabelTreeProcessor processor=new LabelTreeProcessor();
-		processor.loadFile(new File("src\\files\\custom_pre2.xml"));
+		processor.loadFile(new File("src\\testfiles\\custom_pre2.xml"));
 												
 		processor.performLocatorNodesExtraction("one");
 		
