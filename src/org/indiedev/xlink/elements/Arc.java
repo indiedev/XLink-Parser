@@ -7,11 +7,11 @@ package org.indiedev.xlink.elements;
  */
 public class Arc 
 {
-	private String parentLabel;
-	private String childLabel;
+	private String parentLabel;//xlink:from
+	private String childLabel;//xlink:to
 	
 	//stores the order value.Used while inserting arcs into the tree
-	private float childLabelOrder=0;
+	private float childLabelOrder=0;//order
 	
 	public Arc(String t_parentLabel,String t_childLabel,float childOrder)
 	{
