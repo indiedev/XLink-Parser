@@ -81,18 +81,19 @@ class LabelTree
 	
 	public void displayEntireTree()
 	{
-		if(rootNode==null)
+		try
 		{
-			System.out.println("Unable to display LabelTree.ROOTNODE is NULL!!");
-		}
-		else//if rootnode exist.
-		{
+			if(rootNode==null)
+				throw new NullPointerException("Root Node is null.");
+
 			System.out.println("[DISPLAYING TREE]:RootNode:"+rootNode.getNodeName());
-
 			display(rootNode);
+			System.out.println("***FINISHED DISPLAYING ENTIRE TREE***");
 		}
-		System.out.println("***FINISHED DISPLAYING ENTIRE TREE***");
-
+		catch(NullPointerException e)
+		{
+			System.out.println("Error while trying to display LabelTree!"+e);
+		}
 	}
 	 
 	/*
