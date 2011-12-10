@@ -11,7 +11,7 @@ import org.indiedev.xlink.elements.Locator;
  * This represents a node in 'LabelTree'.
  * It encapsulates the 'Locator'.
  */
-public class LabelNode implements Comparable
+public class LabelNode implements Comparable<LabelNode>
 {	
 	//holds the childnodes
 	private SortedSet<LabelNode> childNodes=null;
@@ -65,9 +65,9 @@ public class LabelNode implements Comparable
 	}
 
 	@Override
-	public int compareTo(Object o) 
+	public int compareTo(LabelNode o) 
 	{
-		LabelNode temp=(LabelNode) o;
+		LabelNode temp=o;
 		int currentOrder=this.getOrder();
 		int checkOrder=temp.getOrder();
 		
@@ -76,4 +76,5 @@ public class LabelNode implements Comparable
 		else
 			return 1;
 	}
+
 }
