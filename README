@@ -1,1 +1,5 @@
-This is a test
+Xlink Parser:
+============
+    Retrieve node informations such as Locator, Arcs, ArcList of the XLink xml documents using this API.
+Also allows to display the nodes as a Tree struture.GAAP files can be processed and displaying per presentationnode(xlink:presentationLink).Currently supports only 'Presentation' Nodes.
+
