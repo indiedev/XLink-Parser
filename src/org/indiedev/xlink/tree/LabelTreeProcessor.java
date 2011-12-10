@@ -33,16 +33,18 @@ import org.xml.sax.SAXException;
 public class LabelTreeProcessor 
 {
 	//this list contains the locator nodes.Used for validating only.
-	private ArrayList<String> locatorList=new ArrayList<String>();
+	private ArrayList<String> locatorList;
 	
 	//this list contains the 'xlink:to' attrib values.Used for subtraction with 'locatorList' list for 
 	//finding the root node.
-	private ArrayList<String> arcList_To=new ArrayList<String>();
+	private ArrayList<String> arcList_To;
 	
 	//this list contains the arc nodes.LabelNodes are created from here only.
-	private ArrayList<Arc> arcList=new ArrayList<Arc>();
+	private ArrayList<Arc> arcList;
 	
 	private LabelTree labelTree;
+	
+	private Locator root_LocatorNode=null;
 	
 	//xml vars
 	private DocumentBuilderFactory db_factory;
@@ -51,16 +53,16 @@ public class LabelTreeProcessor
 	
 	/* PRESENTATION LINK ELEMENTS */
 	//Root tag
-	private final String ext_PresentationLink="link:presentationLink";
-	private final String ext_PresentationLinkAttrib_role="xlink:role";
+	private final static String ext_PresentationLink="link:presentationLink";
+	private final static String ext_PresentationLinkAttrib_role="xlink:role";
 		//Locator tag
-		private final String loc_Presentation="link:loc";
-		private final String loc_Presentation_Label="xlink:label";
+		private final static String loc_Presentation="link:loc";
+		private final static String loc_Presentation_Label="xlink:label";
 		//Arc tag
-		private final String arc_Presentation="link:presentationArc";
-		private final String arc_Presentation_From="xlink:from";
-		private final String arc_Presentation_To="xlink:to";
-		private final String arc_Presentation_Order="order";
+		private final static  String arc_Presentation="link:presentationArc";
+		private final static String arc_Presentation_From="xlink:from";
+		private final static String arc_Presentation_To="xlink:to";
+		private final static String arc_Presentation_Order="order";
 	
 	/*
 		INPUT:an XML file
@@ -76,12 +78,6 @@ public class LabelTreeProcessor
 			db_factory=DocumentBuilderFactory.newInstance();
 			doc_builder=db_factory.newDocumentBuilder();
 			document=doc_builder.parse(xmlFile);
-			
-			//finding rootnode
-			Locator rootLocatorNode=getRootNode();
-			
-			//creates the labeltree with this rootnode
-			labelTree=new LabelTree(new LabelNode(rootLocatorNode));	
 		}
 		catch(ParserConfigurationException e)
 		{
@@ -94,6 +90,10 @@ public class LabelTreeProcessor
 		catch(IOException e)
 		{
 			System.out.println("Error while reading XML file!!"+e);
+		}
+		catch(NullPointerException e)
+		{
+			System.out.println(e);
 		}
 	}
 	
@@ -169,17 +169,20 @@ public class LabelTreeProcessor
 	//Extracts all locator nodes under the given 'role' node.
 	private void populateLocatorList(Node t_roleNode)
 	{
-		NodeList nodeList=t_roleNode.getChildNodes();
-		
-		if(nodeList!=null)
+		System.out.println("[POPULATE_LocatorList]:Extracting Locators");
+		if(t_roleNode.hasChildNodes())
 		{
-			System.out.println("Locator size:"+nodeList.getLength());
-			this.printNodeList(nodeList);
+			locatorList=new ArrayList<String>();
+			
+			//getting the child nodes of this particulat presentation node
+			NodeList nodeList=t_roleNode.getChildNodes();
+			//System.out.println("Received Locators count:"+nodeList.getLength());
+			//this.printNodeList(nodeList);
 
-			//extracting only locator nodes from the nodeList
+			//extracting only locator(link:loc) nodes from the nodeList
 			List<Node> list_LocatorNodeList=this.extractNodes(nodeList, loc_Presentation);
 			
-			//extracting Locator labels
+			//extracting Locator attribute:labels
 			String[] locatorLabels=this.extractNodesAttributes(list_LocatorNodeList, loc_Presentation_Label);
 			
 			//adding to locatorList(ArrayList)
@@ -189,59 +192,71 @@ public class LabelTreeProcessor
 		}
 		else
 		{
-			System.out.println("ERROR[LabelTreeProcessor]: Role Node is null! ");
+			System.out.println("ERROR[POPULATE_LocatorList]:Given Role Node has no childs! ");
 		}
 		
-		//getting the childnodes(i.e:Locator nodes)
-	
-/*		System.out.println("[POPULATE_LocatorList]:Started extracting \'Locators\' in Role:"+t_roleNode.getNodeValue());
-		System.out.println("	Node Name:"+nodeList.item(0).getNodeName());
-		System.out.println("	Node List length:"+nodeList.getLength());
-		
-		String LocatorLabel=null;
-		for(int i=0;i<nodeList.getLength();i++)
-		{
-			LocatorLabel=nodeList.item(i).getAttributes().getNamedItem(loc_Presentation_Label).getNodeValue();
-			
-			//adding "locator" labelstring to arraylist... 
-			locatorList.add(LocatorLabel);
-		}//outer-for
-		System.out.println("[POPULATE_LocatorList]:Completed.List size:"+locatorList.size());
-*/	
 	}//populateList
 	
+	
+	//should populate arcs within a single 'presentationLink" node only!
+	//Extracts all arc nodes under the given 'role' node.
 	private void populateArcList(Node t_roleNode)
 	{
-		NodeList nodeList=document.getElementsByTagName(arc_Presentation);
-
-		System.out.println("[POPULATE_ArcList]:Started extracting "+arc_Presentation+" --> "+arc_Presentation_From+" , "+arc_Presentation_To);
-		System.out.println("	Node Name:"+nodeList.item(0).getNodeName());
-		System.out.println("	Node List length:"+nodeList.getLength());
+		String[] Arc_From_Values=null;
+		String[] Arc_To_Values=null;
+		String[] orders=null;
 		
-		String Arc_From_Value=null;
-		String Arc_To_Value=null;
-		float order=0;
-		
-		for(int i=0;i<nodeList.getLength();i++)
+		System.out.println("[POPULATE_ArcList]:Extracting arcs");
+		if(t_roleNode.hasChildNodes())
 		{
-			Arc_From_Value=nodeList.item(i).getAttributes().getNamedItem(arc_Presentation_From).getNodeValue();
-			Arc_To_Value=nodeList.item(i).getAttributes().getNamedItem(arc_Presentation_To).getNodeValue();
-			order=new Float(nodeList.item(i).getAttributes().getNamedItem(arc_Presentation_Order).getNodeValue());
+			//initializing arclist and arcTo list
+			arcList_To=new ArrayList<String>();
+			arcList=new ArrayList<Arc>();
+			
+			//getting the child nodes of this particulat presentation node
+			NodeList nodeList=t_roleNode.getChildNodes();
+
+			//extracting only arc(link:presentationArc) nodes from the nodeList
+			List<Node> list_ArcNodeList=this.extractNodes(nodeList, LabelTreeProcessor.arc_Presentation);
+	
+				//extracting xlink:from, xlink:to and order attribute from the list_ArcNodeList..
+				Arc_From_Values=this.extractNodesAttributes(list_ArcNodeList, arc_Presentation_From);
+				Arc_To_Values=this.extractNodesAttributes(list_ArcNodeList, arc_Presentation_To );
+				orders=this.extractNodesAttributes(list_ArcNodeList, arc_Presentation_Order );
 				
+				System.out.println("Extracted Arc Info:");
+				System.out.println("  COUNTS::  Arc_From:"+Arc_From_Values.length);
+				System.out.println("            Arc_From:"+Arc_To_Values.length);
+				System.out.println("            Order:"+orders.length);
+			
 			//creating 'arc' object and inserting 'from' , 'to' ,'order' values.
-			arcList.add(new Arc(Arc_From_Value, Arc_To_Value, order) );
+			for(int i=0;i<list_ArcNodeList.size();i++)
+			{
+				arcList.add(new Arc(Arc_From_Values[i], Arc_To_Values[i], Float.parseFloat(orders[i])) );
 			
-			//also populate 'arcList_To' arraylist
-			arcList_To.add(Arc_To_Value);
+				//also populate 'arcList_To' arraylist
+				arcList_To.add(Arc_To_Values[i]);
 			
-		}//outer-for
-		System.out.println("[POPULATE_ArcList]:Completed.List size:"+arcList.size());
-		System.out.println("[POPULATE_Arc_To_List]:Completed.List size:"+arcList_To.size());
-		
+			}//outer-for
+			
+			System.out.println("[POPULATE_ArcList]:Completed.List size:"+arcList.size());
+			System.out.println("[POPULATE_Arc_To_List]:Completed.List size:"+arcList_To.size());
+		}
+		else
+		{
+			System.out.println("ERROR[POPULATE_ArcList]:Given Role Node has no childs! ");
+		}
 	}
 	
-	//Extracts the xlink node information under the given 'presentationrole'.
-	public void performLocatorNodesExtraction(String t_role)
+	/*
+	 * Extracts the xlink(locators,arcs) node information under the given 'presentationrole'.
+	 * Inner process:
+	 * --------------
+	 * 1.populates LocatorList.
+	 * 2.populates ArcList(also arcTo list).
+	 * 3.Finds the rootNode of this particular presentation.
+	 */
+	public void processPresentationNode(String t_role)
 	{
 		//getting all 'link:presentationLink' nodes
 		NodeList nodeList_PresentationLink=getEntireNodeList(ext_PresentationLink);
@@ -268,7 +283,10 @@ public class LabelTreeProcessor
 					
 					//passing the roleNode itself .
 					populateLocatorList(roleNode);
-					//populateArcList(roleNode);
+					populateArcList(roleNode);
+					
+					//find the root node
+					root_LocatorNode=getRootNode();
 					
 					break;
 				}//if
@@ -280,13 +298,19 @@ public class LabelTreeProcessor
 		}
 	}
 	
-	public Locator getRootNode()
+	/*
+	 * Finds the root node in the XLink document.
+	 * 
+	 * 
+	 */
+	public Locator getRootNode() throws NullPointerException 
 	{
 		ArrayList<String> tempArrayList=new ArrayList<String>(locatorList);
 		
 		//removes all the elements except one which should be the ROOTNODE
-		if(tempArrayList.removeAll(arcList_To))
+		if(arcList_To.size()!=0 && tempArrayList.removeAll(arcList_To))
 		{
+			//only one element exists if everything is correct...
 			String tempLoc=tempArrayList.iterator().next();
 			
 			//create a root locator
@@ -296,8 +320,7 @@ public class LabelTreeProcessor
 		}
 		else
 		{
-			System.out.println("Unable to find rootnode!");
-			return null;
+			throw new NullPointerException("Unable to find the Root Node!");
 		}
 	}
 	
@@ -313,36 +336,63 @@ public class LabelTreeProcessor
 	public void importArcsIntoLabelTree()
 	{
 		Iterator<Arc> itr=null;
-		String parentLabel, childLabel;
-		float order=0;
 		Arc tempArc=null;
 		
-		System.out.println("[IMPORT:ArcList-->LabelTree]:Started.Current Node Count in Tree="+labelTree.getNodeCount());
-		
-		int passCount=1;
-		while(arcList.size()!=0)
+		String parentLabel=null;
+		String childLabel=null;
+		float order=0F;
+		try
 		{
-			System.out.println("PASS :"+passCount+" , ArcList size:"+arcList.size());
-			itr=arcList.iterator();
-			while(itr.hasNext())
+			System.out.println("[IMPORT:ArcList-->LabelTree]:Started.Current Node Count in Tree="+labelTree.getNodeCount());
+			if(arcList==null)
+				throw new NullPointerException();
+			
+			int passCount=1;
+			while(arcList.size()!=0)
 			{
-				tempArc=itr.next();
-				
-				//get the parent and child labels & its order
-				parentLabel=tempArc.getParentLabel();
-				childLabel=tempArc.getChildLabel();
-				order=tempArc.getOrder();
-				
-				//start inserting each arc element to the LabelTree.
-				if(labelTree.insertNode(new LabelNode(new Locator(parentLabel, 0)),new LabelNode(new Locator(childLabel,order))))
-					itr.remove();//removes the element if successfully inserted into tree.
-
-			}//inner-while
-			passCount++;
-		}//while
+				System.out.println("PASS :"+passCount+" , ArcList size:"+arcList.size());
+				itr=arcList.iterator();
+				while(itr.hasNext())
+				{
+					tempArc=itr.next();
+					
+					//get the parent and child labels & its order
+					parentLabel=tempArc.getParentLabel();
+					childLabel=tempArc.getChildLabel();
+					order=tempArc.getOrder();
+					
+					//start inserting each arc element to the LabelTree.
+					if(labelTree.insertNode(new LabelNode(new Locator(parentLabel, 0)),new LabelNode(new Locator(childLabel,order))))
+						itr.remove();//removes the element if successfully inserted into tree.
+	
+				}//inner-while
+				passCount++;
+			}//while
+			
+			System.out.println("[IMPORT:ArcList-->LabelTree]:Completed.Node Count in Tree="+labelTree.getNodeCount());
+		}
+		catch(NullPointerException e)
+		{
+			System.out.println("ERROR:Unable to import ArcList into Tree. ArcList is not created! "+e);
+		}
 		
-		System.out.println("[IMPORT:ArcList-->LabelTree]:Completed.Node Count in Tree="+labelTree.getNodeCount());
-		
+	}
+	
+	public void buildLabelTree()
+	{
+		try
+		{
+			if(root_LocatorNode==null)
+				throw new NullPointerException("Root Node is null.");
+			
+			//creates the labeltree with this rootnode
+			labelTree=new LabelTree(new LabelNode(root_LocatorNode));
+			this.importArcsIntoLabelTree();
+		}
+		catch(NullPointerException e)
+		{
+			System.out.println("Unable to create LabelTree!! "+e);
+		}
 	}
 	public ArrayList<String> getLocatorList() 
 	{
@@ -359,12 +409,12 @@ public class LabelTreeProcessor
 		
 		LabelTreeProcessor processor=new LabelTreeProcessor();
 		processor.loadFile(new File("testfiles\\custom_pre2.xml"));
-												
-		processor.performLocatorNodesExtraction("one");
+
+		//process a single xlink:presentation node
+		processor.processPresentationNode("two");
 		
-		//inserting a node from the arclist
-		processor.importArcsIntoLabelTree();
-		
+		//building the label tree from the processed data
+		processor.buildLabelTree();
 		
 		//displaying the tree struture
 		processor.viewTree();
